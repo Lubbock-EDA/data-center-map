@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<!--
+  High Ground of Texas - Data Center Tracker
+  ------------------------------------------
+  How this page is put together (plain-language version):
+
+    index.html   <- this file. The page layout (HTML), the look (CSS), and the behavior (JavaScript).
+    projects.js  <- the data center list. Made from your Excel file by tools/build_data.py.
+    counties.js  <- the county shapes. Made once by tools/build_counties.py.
+    leaflet/     <- the free map library that draws the map. It lives in this folder so the
+                    page does not depend on anyone else's server for it.
+
+  To update the page: change your Excel file, run build_data.py, refresh the browser (Ctrl+F5).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Makes the page scale properly on phones and inside an embedded frame -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Centers in the High Ground of Texas</title>
+
+  <!-- LEDA heading font (Antonio) from Google Fonts. If it can't load, the browser uses Arial Narrow. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- The map library's own styling -->
+  <link rel="stylesheet" href="leaflet/leaflet.css">
+
+  <style>
+    /* ---------- 1. COLORS AND FONTS (LEDA brand) ----------
+       Change a color here and it changes everywhere on the page. */
+    :root {
+      --black: #040707;
+      --slate: #243746;
+      --teal:  #006072;
+      --taupe: #c5b9ac;
+      --line:  #d9d4cd;                 /* soft gray-taupe for table lines */
+      --heading-font: "Antonio", "Arial Narrow", Impact, sans-serif;
+      /* Greycliff is LEDA's body font. It is a paid font, so it only shows up if the font
+         files are added to the website. Until then the browser uses the next one in the list. */
+      --body-font: "Greycliff CF", "Greycliff", "Segoe UI", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }   /* makes widths include padding - far easier to reason about */
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #ffffff;
+      color: var(--black);
+      font-family: var(--body-font);
+    }
+
+    /* ---------- 2. PAGE LAYOUT ----------
+       "Grid" = split the page into rows. Row 1 is the stat band, row 2 is the map + table. */
+    .page {
+      height: 100%;
+      min-height: 640px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      padding: 14px 22px 18px;
+      gap: 12px;
+    }
+
+    /* ---------- 3. THE TOTALS BAND AT THE TOP ---------- */
+    .stats {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(14px, 2.4vw, 40px);
+      flex-wrap: wrap;
+      padding-bottom: 2px;
+    }
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--heading-font);
+      text-transform: uppercase;
+      line-height: 0.95;
+    }
+    /* clamp(min, preferred, max) = "scale with the window, but never smaller/bigger than this" */
+    .stat .big   { font-size: clamp(34px, 3.9vw, 78px); font-weight: 700; color: var(--teal); white-space: nowrap; }
+    .stat .label { font-size: clamp(14px, 1.45vw, 28px); font-weight: 600; color: var(--slate); letter-spacing: .02em; }
+    .divider     { width: 2px; align-self: stretch; background: var(--slate); min-height: 44px; }
+    @media (min-width: 901px) { .stats { flex-wrap: nowrap; } }
+
+    /* ---------- 4. MAP (left) AND TABLE (right) ---------- */
+    .content {
+      display: grid;
+      grid-template-columns: minmax(300px, 44%) 1fr;
+      gap: 22px;
+      min-height: 0;          /* lets the table scroll inside instead of stretching the page */
+    }
+    .map-wrap { position: relative; min-height: 0; }
+    #map {
+      position: absolute; inset: 0;       /* fills its wrapper completely */
+      background: #e9e5df;                /* shows through if the map tiles can't load */
+      border: 1px solid var(--line);
+    }
+
+    .right-col { display: flex; flex-direction: column; min-height: 0; }
+    .table-wrap { overflow: auto; min-height: 0; flex: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: clamp(11px, .8vw, 13.5px); }
+    thead th {
+      position: sticky; top: 0;           /* header stays visible while the rows scroll */
+      background: #fff;
+      text-align: left;
+      font-weight: 600;
+      padding: 5px 8px;
+      border-bottom: 2px solid var(--teal);
+      white-space: nowrap;
+    }
+    tbody td { padding: 3px 7px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+    tbody tr:nth-child(even) { background: #f6f4f1; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody tr { cursor: default; }
+    tbody tr.active { background: #d7e8eb !important; outline: 1px solid var(--teal); }
+    tbody tr.nopin td:first-child::before { content: " *"; color: var(--teal); }  /* marks rows with no map pin */
+
+    .footnote { font-size: 11px; color: #5b6770; margin-top: 6px; }
+
+    /* ---------- 5. MAP MARKERS (the numbered circles) ---------- */
+    .pin {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--slate);
+      color: #fff;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.45);
+      font: 700 11px/18px var(--heading-font);
+      letter-spacing: .02em;
+      text-align: center;
+    }
+    .pin.active { background: var(--black); transform: scale(1.35); box-shadow: 0 0 0 3px rgba(0,96,114,.6); }
+
+    /* ---------- 6. MAP LEGEND ---------- */
+    .legend {
+      background: rgba(255,255,255,.93);
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .legend b { font-family: var(--heading-font); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--slate); }
+    .legend i { display: inline-block; width: 16px; height: 11px; margin-right: 6px; vertical-align: -1px; border: 1px solid #b9b2a8; }
+
+    /* ---------- 6b. COUNTY NAME LABELS AND THE ON/OFF BUTTON ---------- */
+    .county-label {
+      /* A zero-size anchor at the county's center; the text inside is shifted so it sits centered on it. */
+      width: 0; height: 0; overflow: visible; pointer-events: none;
+    }
+    .county-label span {
+      position: absolute; transform: translate(-50%, -50%);
+      white-space: nowrap;
+      font: 700 9px/1 var(--body-font);
+      letter-spacing: .03em; text-transform: uppercase;
+      color: var(--black);
+      /* a white glow around the letters keeps them readable on top of the shading */
+      text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff, 0 0 2px #fff;
+    }
+    .names-btn {
+      background: #fff; color: var(--slate);
+      border: 2px solid rgba(0,0,0,.25); border-radius: 4px;
+      font: 600 12px/1 var(--body-font); padding: 8px 10px; cursor: pointer;
+    }
+    .names-btn:hover { background: #f4f4f4; }
+    .names-btn[aria-pressed="true"] { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+    /* ---------- 7. SMALL SCREENS: stack the map above the table ---------- */
+    @media (max-width: 900px) {
+      .page { height: auto; }
+      .content { grid-template-columns: 1fr; }
+      .map-wrap { height: 380px; }
+      .table-wrap { max-height: 520px; }
+      .divider { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- THE TOTALS BAND. The numbers are filled in by JavaScript further down. -->
+    <div class="stats" aria-live="polite">
+      <div class="stat"><span class="big" id="stat-invest">--</span><span class="label">Total<br>Investment</span></div>
+      <div class="divider"></div>
+      <div class="stat"><span class="big" id="stat-gw">--</span><span class="label">Total<br>GW Usage</span></div>
+      <div class="divider"></div>
+      <div class="stat"><span class="big" id="stat-county">--</span><span class="label">Projects Developed<br>In The County</span></div>
+    </div>
+
+    <div class="content">
+      <div class="map-wrap"><div id="map" role="img" aria-label="Map of data center projects in the High Ground of Texas"></div></div>
+
+      <div class="right-col">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="num">Project<br>Number</th>
+                <th>Year<br>Announced</th>
+                <th>Project Name</th>
+                <th>County</th>
+                <th>Closest Town</th>
+                <th>Located In</th>
+                <th class="num">Investment</th>
+                <th class="num">Power<br>(MW)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div class="footnote" id="footnote"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load the map library, then the two data files (they create PROJECTS, COUNTIES and REGION_OUTLINE). -->
+  <script src="leaflet/leaflet.js"></script>
+  <script src="counties.js"></script>
+  <script src="projects.js"></script>
+
+  <script>
+    /* =========================================================
+       THE JAVASCRIPT. Each numbered step does one job.
+       ========================================================= */
+
+    /* ---- STEP 1: the list of projects to show ----
+       Right now this is simply "all of them". If you later add filters (county, year,
+       investment, MW), this is the one place to change: make this function return only
+       the projects that match the filter choices, then call render() again. */
+    function visibleProjects() {
+      return window.PROJECTS;
+    }
+
+    /* ---- STEP 2: small helpers that format numbers for display ---- */
+    const money = n => (n == null) ? "" : "$" + Math.round(n).toLocaleString("en-US");
+    const mwText = n => (n == null) ? "" : Math.round(n).toLocaleString("en-US");
+
+    /* ---- STEP 3: set up the map ---- */
+    const map = L.map("map", { zoomSnap: 0.25, scrollWheelZoom: false });   // scroll-zoom off so scrolling the page doesn't hijack the map
+
+    // The street/background layer. Light gray so the data stands out.
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+      attribution: "Tiles &copy; Esri", maxZoom: 12
+    }).addTo(map);
+
+    // Town and highway names, drawn on top of the counties so they stay readable.
+    map.createPane("labels");
+    map.getPane("labels").style.zIndex = 450;
+    map.getPane("labels").style.pointerEvents = "none";
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}", {
+      pane: "labels", maxOpacity: 0.9, maxZoom: 12
+    }).addTo(map);
+
+
+    /* ---- STEP 3b: the "County names" button ----
+       Starts OFF (cleaner map). Clicking it flips showNames and shows or hides the labels. */
+    let showNames = false;
+    let namesLayer = null;                         // holds all the county name labels
+    map.createPane("countynames");
+    map.getPane("countynames").style.zIndex = 440; // above the shading, below the numbered circles
+
+    const NamesButton = L.Control.extend({
+      options: { position: "topright" },
+      onAdd: function () {
+        const btn = L.DomUtil.create("button", "names-btn");
+        btn.type = "button";
+        btn.textContent = "County names";
+        btn.setAttribute("aria-pressed", "false");
+        L.DomEvent.disableClickPropagation(btn);   // clicking the button shouldn't also click the map
+        btn.addEventListener("click", () => {
+          showNames = !showNames;
+          btn.setAttribute("aria-pressed", String(showNames));
+          if (showNames) { namesLayer.addTo(map); } else { namesLayer.remove(); }
+        });
+        return btn;
+      }
+    });
+    map.addControl(new NamesButton());
+
+    /* ---- STEP 4: color each county by its total MW ----
+       Add up the MW of every project in each county, then pick a shade of LEDA teal. */
+    function render() {
+      const list = visibleProjects();
+      drawTotals(list);
+      drawCounties(list);
+      drawPins(list);
+      drawTable(list);
+    }
+
+    let countyLayer = null, pinLayer = null;
+    const pinsByNum = {};      // project number -> its marker, so the table can find it
+
+    function drawCounties(list) {
+      const mwByCounty = {};
+      list.forEach(p => { mwByCounty[p.county] = (mwByCounty[p.county] || 0) + (p.mw || 0); });
+
+      // The shade steps. Each row: "at least this many MW" -> color. Edit freely.
+      const steps = [
+        [8000, "rgba(0,96,114,0.85)"],
+        [3000, "rgba(0,96,114,0.68)"],
+        [1500, "rgba(0,96,114,0.50)"],
+        [500,  "rgba(0,96,114,0.34)"],
+        [1,    "rgba(0,96,114,0.18)"]
+      ];
+      const shade = mw => { for (const [min, col] of steps) if (mw >= min) return col; return "rgba(197,185,172,0.10)"; };
+
+      if (countyLayer) countyLayer.remove();
+      countyLayer = L.geoJSON(window.COUNTIES, {
+        style: f => ({ color: "#6f7a82", weight: 1, fillColor: shade(mwByCounty[f.properties.name] || 0), fillOpacity: 1 }),
+        onEachFeature: (f, layer) => {
+          const mw = mwByCounty[f.properties.name] || 0;
+          layer.bindTooltip(f.properties.name + " County" + (mw ? " &middot; " + mwText(mw) + " MW" : ""), { sticky: true });
+        }
+      }).addTo(map);
+
+      // One text label per county, placed at the middle of the county's shape.
+      if (namesLayer) namesLayer.remove();
+      namesLayer = L.layerGroup();
+      countyLayer.eachLayer(layer => {
+        L.marker(layer.getBounds().getCenter(), {
+          pane: "countynames", interactive: false, keyboard: false,
+          icon: L.divIcon({ className: "county-label", html: "<span>" + layer.feature.properties.name + "</span>", iconSize: [0, 0] })
+        }).addTo(namesLayer);
+      });
+      if (showNames) namesLayer.addTo(map);
+
+      // The heavy outline around the whole High Ground region
+      L.geoJSON(window.REGION_OUTLINE, { style: { color: "#243746", weight: 2.5, fill: false }, interactive: false }).addTo(map);
+    }
+
+    /* ---- STEP 5: the numbered circles ---- */
+    function drawPins(list) {
+      if (pinLayer) pinLayer.remove();
+      pinLayer = L.layerGroup().addTo(map);
+      list.forEach(p => {
+        if (p.lat == null || p.lon == null) return;          // no location yet = no pin
+        const marker = L.marker([p.lat, p.lon], {
+          icon: L.divIcon({ className: "", html: '<div class="pin">' + p.num + "</div>", iconSize: [22, 22], iconAnchor: [11, 11] }),
+          title: p.name
+        }).addTo(pinLayer);
+        marker.bindTooltip("<b>" + p.num + ". " + p.name + "</b><br>" + p.county + " County" +
+          (p.mw != null ? "<br>" + mwText(p.mw) + " MW" : "") + (p.investment != null ? " &middot; " + money(p.investment) : "") +
+          "<br>" + p.status, { direction: "top", offset: [0, -10] });
+        marker.on("mouseover", () => highlight(p.num, true));
+        marker.on("mouseout",  () => highlight(p.num, false));
+        pinsByNum[p.num] = marker;
+      });
+    }
+
+    /* ---- STEP 6: the table ---- */
+    function drawTable(list) {
+      const body = document.getElementById("rows");
+      body.innerHTML = "";
+      list.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.dataset.num = p.num;
+        if (p.lat == null) tr.className = "nopin";
+        tr.innerHTML =
+          '<td class="num">' + p.num + "</td><td>" + p.year + "</td><td>" + p.name + "</td><td>" + p.county + "</td><td>" +
+          p.town + "</td><td>" + p.locatedIn + '</td><td class="num">' + money(p.investment) + '</td><td class="num">' +
+          mwText(p.mw) + "</td><td>" + p.status + "</td>";
+        tr.addEventListener("mouseenter", () => highlight(p.num, true));
+        tr.addEventListener("mouseleave", () => highlight(p.num, false));
+        body.appendChild(tr);
+      });
+      const missing = list.filter(p => p.lat == null).length;
+      document.getElementById("footnote").textContent =
+        missing ? "* Map location not yet confirmed for " + missing + " project" + (missing > 1 ? "s" : "") + "." : "";
+    }
+
+    /* ---- STEP 7: hovering a row lights up its pin (and the other way around) ---- */
+    function highlight(num, on) {
+      const row = document.querySelector('tr[data-num="' + num + '"]');
+      if (row) row.classList.toggle("active", on);
+      const m = pinsByNum[num];
+      if (m && m.getElement()) m.getElement().firstChild.classList.toggle("active", on);
+      if (m) m.setZIndexOffset(on ? 1000 : 0);
+    }
+
+    /* ---- STEP 8: the three big numbers at the top ---- */
+    function drawTotals(list) {
+      const invest = list.reduce((s, p) => s + (p.investment || 0), 0);
+      const mw     = list.reduce((s, p) => s + (p.mw || 0), 0);
+      const inCounty = list.filter(p => p.locatedIn === "County").length;
+      document.getElementById("stat-invest").textContent = "$" + Math.round(invest / 1e9).toLocaleString("en-US") + " Billion";
+      document.getElementById("stat-gw").textContent     = Math.round(mw / 1000).toLocaleString("en-US");
+      document.getElementById("stat-county").textContent = inCounty + " of " + list.length;
+    }
+
+    /* ---- STEP 9: draw everything, and zoom the map to fit the region ---- */
+    render();
+    map.fitBounds(L.geoJSON(window.REGION_OUTLINE).getBounds(), { padding: [6, 6] });
+    // If the page was resized (like when it loads inside a frame), re-fit the map.
+    window.addEventListener("resize", () => { map.invalidateSize(); map.fitBounds(L.geoJSON(window.REGION_OUTLINE).getBounds(), { padding: [6, 6] }); });
+  </script>
+</body>
+</html>
