@@ -5,12 +5,12 @@
   How this page is put together (plain-language version):
 
     index.html   <- this file. The page layout (HTML), the look (CSS), and the behavior (JavaScript).
-    projects.js  <- the data center list. Made from your Excel file by tools/build_data.py.
+    projects.js  <- the data center list. Made from your Excel file by tools/build_data_center_map_data.py.
     counties.js  <- the county shapes. Made once by tools/build_counties.py.
     leaflet/     <- the free map library that draws the map. It lives in this folder so the
                     page does not depend on anyone else's server for it.
 
-  To update the page: change your Excel file, run build_data.py, refresh the browser (Ctrl+F5).
+  To update the page: change your Excel file, run build_data_center_map_data.py, refresh the browser (Ctrl+F5).
 -->
 <html lang="en">
 <head>
@@ -117,7 +117,7 @@
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     tbody tr { cursor: default; }
     tbody tr.active { background: #d7e8eb !important; outline: 1px solid var(--teal); }
-    tbody tr.nopin td:first-child::before { content: " *"; color: var(--teal); }  /* marks rows with no map pin */
+    tbody tr.nopin td:first-child::before { content: "* "; color: var(--teal); }  /* marks rows with no map pin */
 
     .footnote { font-size: 11px; color: #5b6770; margin-top: 6px; }
 
@@ -239,6 +239,13 @@
     /* ---- STEP 2: small helpers that format numbers for display ---- */
     const money = n => (n == null) ? "" : "$" + Math.round(n).toLocaleString("en-US");
     const mwText = n => (n == null) ? "" : Math.round(n).toLocaleString("en-US");
+    
+    // Turns dollars into short text: 12500000000 -> "$12.5 billion", 450000000 -> "$450 million"
+    const investText = n => {
+      if (!n) return "";         // no investment figure -> show nothing
+      if (n >= 1e9) return "$" + (n / 1e9).toFixed(1) + " billion"; 
+      return "$" + Math.round(n / 1e6).toLocaleString("en-US") + " million";  
+    }; 
 
     /* ---- STEP 3: set up the map ---- */
     const map = L.map("map", { zoomSnap: 0.25, scrollWheelZoom: false });   // scroll-zoom off so scrolling the page doesn't hijack the map
@@ -298,6 +305,12 @@
     function drawCounties(list) {
       const mwByCounty = {};
       list.forEach(p => { mwByCounty[p.county] = (mwByCounty[p.county] || 0) + (p.mw || 0); });
+      const countByCounty = {}; 
+      const investByCounty = {}; 
+      list.forEach(p => {
+        countByCounty[p.county] = (countByCounty[p.county] || 0) + 1; 
+        investByCounty[p.county] = (investByCounty[p.county] || 0) + (p.investment || 0); 
+      }); 
 
       // The shade steps. Each row: "at least this many MW" -> color. Edit freely.
       const steps = [
@@ -313,8 +326,21 @@
       countyLayer = L.geoJSON(window.COUNTIES, {
         style: f => ({ color: "#6f7a82", weight: 1, fillColor: shade(mwByCounty[f.properties.name] || 0), fillOpacity: 1 }),
         onEachFeature: (f, layer) => {
-          const mw = mwByCounty[f.properties.name] || 0;
-          layer.bindTooltip(f.properties.name + " County" + (mw ? " &middot; " + mwText(mw) + " MW" : ""), { sticky: true });
+          const name = f.properties.name;
+          const count = countByCounty[name] || 0;
+
+          let html = "<b>" + name + " County</b>";
+          if (count) {
+            // "1 data center" vs "3 data centers"
+            html += "<br>" + count + (count === 1 ? " data center" : " data centers");
+
+            // Only show the pieces we actually have, joined by a dot
+            const parts = [];
+            if (investByCounty[name]) parts.push(investText(investByCounty[name]));
+            if (mwByCounty[name])     parts.push(mwText(mwByCounty[name]) + " MW");
+            if (parts.length) html += "<br>" + parts.join(" &middot; ");
+          }  
+          layer.bindTooltip(html, { sticky: true });
         }
       }).addTo(map);
 
