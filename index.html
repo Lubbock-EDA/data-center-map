@@ -112,6 +112,13 @@
       border-bottom: 2px solid var(--teal);
       white-space: nowrap;
     }
+
+    /* Sortable headers: pointer cursor, teal on hover, and a little arrow on the column that's sorted. */
+    thead th { cursor: pointer; user-select: none; }
+    thead th:hover { color: var(--teal); }
+    thead th[aria-sort="ascending"]::after  { content: " \25B2"; font-size: 9px; color: var(--teal); }
+    thead th[aria-sort="descending"]::after { content: " \25BC"; font-size: 9px; color: var(--teal); }
+
     tbody td { padding: 3px 7px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
     tbody tr:nth-child(even) { background: #f6f4f1; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -199,15 +206,15 @@
           <table>
             <thead>
               <tr>
-                <th class="num">Project<br>Number</th>
-                <th>Year<br>Announced</th>
-                <th>Project Name</th>
-                <th>County</th>
-                <th>Closest Town</th>
-                <th>Located In</th>
-                <th class="num">Investment</th>
-                <th class="num">Power<br>(MW)</th>
-                <th>Status</th>
+                <th class="num" data-key="num" aria-sort="ascending">Project<br>Number</th>
+                <th data-key="year">Year<br>Announced</th>
+                <th data-key="name">Project Name</th>
+                <th data-key="county">County</th>
+                <th data-key="town">Closest Town</th>
+                <th data-key="locatedIn">Located In</th>
+                <th class="num" data-key="investment">Investment</th>
+                <th class="num" data-key="mw">Power<br>(MW)</th>
+                <th data-key="status">Status</th>
               </tr>
             </thead>
             <tbody id="rows"></tbody>
@@ -378,11 +385,11 @@
       });
     }
 
-    /* ---- STEP 6: the table ---- */
+    /* ---- STEP 6a: the table ---- */
     function drawTable(list) {
       const body = document.getElementById("rows");
       body.innerHTML = "";
-      list.forEach(p => {
+      sortedList(list).forEach(p => {
         const tr = document.createElement("tr");
         tr.dataset.num = p.num;
         if (p.lat == null) tr.className = "nopin";
@@ -398,6 +405,42 @@
       document.getElementById("footnote").textContent =
         missing ? "* Map location not yet confirmed for " + missing + " project" + (missing > 1 ? "s" : "") + "." : "";
     }
+
+/* ---- STEP 6b: sorting the table ---- */
+let sortKey = "num";     // which column the table is sorted by right now
+let sortDir = 1;         // 1 = low to high, -1 = high to low
+
+// Returns a sorted COPY of the list (slice() makes the copy, so the original order is untouched)
+function sortedList(list) {
+  return list.slice().sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    const xEmpty = (x == null || x === "");
+    const yEmpty = (y == null || y === "");
+
+    // Blank values (like a missing investment) always sink to the bottom, either direction
+    if (xEmpty && yEmpty) return 0;
+    if (xEmpty) return 1;
+    if (yEmpty) return -1;
+
+    // Numbers compare by subtraction, text compares alphabetically
+    if (typeof x === "number") return (x - y) * sortDir;
+    return String(x).localeCompare(String(y)) * sortDir;
+  });
+}
+
+// Clicking a header: same column = flip direction, new column = start low to high
+document.querySelectorAll("thead th").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (key === sortKey) { sortDir = -sortDir; } else { sortKey = key; sortDir = 1; }
+
+    // Move the arrow: clear it from every header, then put it on this one
+    document.querySelectorAll("thead th").forEach(h => h.removeAttribute("aria-sort"));
+    th.setAttribute("aria-sort", sortDir === 1 ? "ascending" : "descending");
+
+    drawTable(visibleProjects());
+  });
+});
 
     /* ---- STEP 7: hovering a row lights up its pin (and the other way around) ---- */
     function highlight(num, on) {
