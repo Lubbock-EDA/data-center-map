@@ -1,4 +1,4 @@
-// Project data for the map and table. Built by tools/build_data.py - don't edit by hand.
+// Project data for the map and table. Built by build_data_center_map_data.py - don't edit by hand.
 window.PROJECTS = [
  {
   "year": 2021,
@@ -521,6 +521,20 @@ window.PROJECTS = [
  {
   "year": 2026,
   "month": 10,
+  "name": "Project Clocktower",
+  "county": "Hardeman",
+  "town": "Quanah",
+  "locatedIn": "County",
+  "investment": 6700000000.0,
+  "mw": 756.0,
+  "status": "Under construction",
+  "lat": 34.220674,
+  "lon": -99.710592,
+  "num": 38
+ },
+ {
+  "year": 2026,
+  "month": 10,
   "name": "Project Hyper Kent Jayton (Spur)",
   "county": "Kent",
   "town": "Jayton",
@@ -530,6 +544,6 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 33.3379,
   "lon": -100.9866,
-  "num": 38
+  "num": 39
  }
 ];
