@@ -8,7 +8,7 @@ window.PROJECTS = [
   "town": "Afton",
   "locatedIn": "County",
   "investment": 5800000000.0,
-  "mw": 1600.0,
+  "mw": 1630.0,
   "status": "Operating, expanding",
   "lat": 33.7783858,
   "lon": -100.868877,
@@ -23,7 +23,7 @@ window.PROJECTS = [
   "locatedIn": "City",
   "investment": 1800000000.0,
   "mw": 207.0,
-  "status": "Planned",
+  "status": "Operating",
   "lat": 31.838,
   "lon": -102.326,
   "num": 2
@@ -51,7 +51,7 @@ window.PROJECTS = [
   "locatedIn": "County",
   "investment": 2500000000.0,
   "mw": 280.0,
-  "status": "Operational",
+  "status": "Operating",
   "lat": 31.22,
   "lon": -102.18,
   "num": 4
@@ -79,7 +79,7 @@ window.PROJECTS = [
   "locatedIn": "County",
   "investment": 2100000000.0,
   "mw": 234.0,
-  "status": "Operational",
+  "status": "Operating",
   "lat": 31.5108344,
   "lon": -103.4495599,
   "num": 6
@@ -130,14 +130,14 @@ window.PROJECTS = [
   "year": 2025,
   "month": 1,
   "name": "IREN Sweetwater",
-  "county": "Nolan",
+  "county": "Fisher",
   "town": "Sweetwater",
   "locatedIn": "County",
   "investment": 17300000000.0,
   "mw": 2000.0,
-  "status": "Planned",
-  "lat": 32.46384557,
-  "lon": -100.3299567,
+  "status": "Under construction",
+  "lat": 32.629724,
+  "lon": -100.546113,
   "num": 10
  },
  {
@@ -190,7 +190,7 @@ window.PROJECTS = [
   "town": "Odessa",
   "locatedIn": "County",
   "investment": 2200000000.0,
-  "mw": 250.0,
+  "mw": 200.0,
   "status": "Under construction",
   "lat": 31.89517,
   "lon": -102.556,
@@ -297,7 +297,7 @@ window.PROJECTS = [
  {
   "year": 2025,
   "month": 10,
-  "name": "Project Horizon",
+  "name": "Project Horizon Poolside",
   "county": "Pecos",
   "town": "Fort Stockton",
   "locatedIn": "County",
@@ -380,6 +380,20 @@ window.PROJECTS = [
  },
  {
   "year": 2026,
+  "month": 1,
+  "name": "Ranger (Google)",
+  "county": "Haskell",
+  "town": "Stamford",
+  "locatedIn": "County",
+  "investment": 1000000000.0,
+  "mw": null,
+  "status": "Planned",
+  "lat": 32.978217,
+  "lon": -99.635026,
+  "num": 28
+ },
+ {
+  "year": 2026,
   "month": 4,
   "name": "Project Caprock",
   "county": "Hale",
@@ -390,7 +404,7 @@ window.PROJECTS = [
   "status": "Under construction",
   "lat": 33.867975,
   "lon": -101.8509,
-  "num": 28
+  "num": 29
  },
  {
   "year": 2026,
@@ -404,7 +418,21 @@ window.PROJECTS = [
   "status": "Under construction",
   "lat": 31.532752,
   "lon": -103.802087,
-  "num": 29
+  "num": 30
+ },
+ {
+  "year": 2026,
+  "month": 6,
+  "name": "Project Raptor",
+  "county": "Archer",
+  "town": "Archer City",
+  "locatedIn": "County",
+  "investment": null,
+  "mw": 1000.0,
+  "status": "Planned",
+  "lat": 33.789909,
+  "lon": -98.599909,
+  "num": 31
  },
  {
   "year": 2026,
@@ -418,7 +446,7 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 35.017757,
   "lon": -102.619796,
-  "num": 30
+  "num": 32
  },
  {
   "year": 2026,
@@ -432,7 +460,7 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 35.580008,
   "lon": -100.719389,
-  "num": 31
+  "num": 33
  },
  {
   "year": 2026,
@@ -446,12 +474,12 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 31.1343,
   "lon": -103.4383,
-  "num": 32
+  "num": 34
  },
  {
   "year": 2026,
   "month": 7,
-  "name": "Lancium: Childress Campus",
+  "name": "Project Hyper",
   "county": "Childress",
   "town": "Childress",
   "locatedIn": "County",
@@ -460,7 +488,7 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 34.373901,
   "lon": -100.049103,
-  "num": 33
+  "num": 35
  },
  {
   "year": 2026,
@@ -474,21 +502,21 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 34.33601,
   "lon": -100.897889,
-  "num": 34
+  "num": 36
  },
  {
   "year": 2026,
   "month": 8,
-  "name": "Horizon Junction",
+  "name": "Project Horizon Junction",
   "county": "Floyd",
   "town": "Floydada",
   "locatedIn": "County",
-  "investment": 900000000.0,
+  "investment": 1200000000.0,
   "mw": null,
   "status": "Planned",
   "lat": null,
   "lon": null,
-  "num": 35
+  "num": 37
  },
  {
   "year": 2026,
@@ -502,7 +530,21 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 31.402593,
   "lon": -103.569969,
-  "num": 36
+  "num": 38
+ },
+ {
+  "year": 2026,
+  "month": 9,
+  "name": "Zone Frontier",
+  "county": "Potter",
+  "town": "Amarillo",
+  "locatedIn": "County",
+  "investment": 100000000.0,
+  "mw": 200.0,
+  "status": "Planned",
+  "lat": 35.310132,
+  "lon": -101.921753,
+  "num": 39
  },
  {
   "year": 2026,
@@ -516,7 +558,7 @@ window.PROJECTS = [
   "status": "Planned",
   "lat": 32.639701,
   "lon": -102.557355,
-  "num": 37
+  "num": 40
  },
  {
   "year": 2026,
@@ -530,7 +572,7 @@ window.PROJECTS = [
   "status": "Under construction",
   "lat": 34.220674,
   "lon": -99.710592,
-  "num": 38
+  "num": 41
  },
  {
   "year": 2026,
@@ -539,11 +581,25 @@ window.PROJECTS = [
   "county": "Kent",
   "town": "Jayton",
   "locatedIn": "County",
-  "investment": 4800000.0,
+  "investment": 4800000000.0,
   "mw": null,
   "status": "Planned",
   "lat": 33.3379,
   "lon": -100.9866,
-  "num": 39
+  "num": 42
+ },
+ {
+  "year": 2026,
+  "month": 11,
+  "name": "Project Matter Triangle Ranch",
+  "county": "Cottle",
+  "town": "Paducha",
+  "locatedIn": "County",
+  "investment": 1100000000.0,
+  "mw": 96.0,
+  "status": "Planned",
+  "lat": 34.013182,
+  "lon": -100.058116,
+  "num": 43
  }
 ];
